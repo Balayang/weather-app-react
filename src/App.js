@@ -1,82 +1,91 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React from 'react';
+
+import { WeatherCard } from './WeatherCard';
+
 import './css/Normalize.css';
 import './css/App.css';
 
-const App = () => {
-	const [lat, setLat] = useState([]);
-	const [lon, setLon] = useState([]);
-	const [data, setData] = useState([]);
-	const [location, setLocation] = useState('');
+export const App = () => {
+  const [status, setStatus] = React.useState('LOADING');
+  const [position, setPosition] = React.useState(undefined);
+  const [weatherData, setWeatherData] = React.useState(undefined);
+  const [location, setLocation] = React.useState(undefined);
 
-	const API_KEY = '4cb149be23b7e24992b533583702ae1e';
-	const API_URL_COORD = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`;
-	const API_URL_LOCATION = `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${API_KEY}&units=metric`;
+  const getApiUrlWithCoords = position =>
+    `https://api.openweathermap.org/data/2.5/weather?lat=${position.lat}&lon=${position.long}&appid=${process.env.REACT_APP_API_KEY}&units=metric`;
+  const getApiUrlWithLocation = location =>
+    `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${process.env.REACT_APP_API_KEY}&units=metric`;
 
-	useEffect(() => {
-		const fetchData = async () => {
-			navigator.geolocation.getCurrentPosition(function (position) {
-				setLat(position.coords.latitude);
-				setLon(position.coords.longitude);
-			});
+  React.useEffect(() => {
+    if (!navigator.geolocation) {
+      console.error('Your browser doesnt support geolocation.');
+      setStatus('ERROR');
+    } else {
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          setPosition({ lat: position.coords.latitude, long: position.coords.longitude });
+        },
+        error => {
+          console.error('Getting geolocation failed ', error);
+          setStatus('ERROR');
+        }
+      );
+    }
+  }, []);
 
-			await fetch(API_URL_COORD)
-				.then((res) => res.json())
-				.then((result) => {
-					setData(result);
-					console.log(result);
-				});
-		};
-		fetchData();
-	}, [API_URL_COORD, lat, lon]);
+  React.useEffect(() => {
+    const fetchData = async position => {
+      const rawWeatherData = await (await fetch(getApiUrlWithCoords(position))).json();
+      setWeatherData({
+        cityName: rawWeatherData.name,
+        temp: rawWeatherData.main.temp,
+        humidity: rawWeatherData.main.humidity,
+        windSpeed: rawWeatherData.wind.speed,
+        iconName: rawWeatherData.weather[0].icon,
+        description: rawWeatherData.weather[0].description,
+      });
+    };
 
-	const searchLocation = (event) => {
-		if (event.key === 'Enter') {
-			axios.get(API_URL_LOCATION).then((response) => {
-				setData(response.data);
-			});
-			setLocation('');
-		}
-	};
+    if (position) {
+      fetchData(position);
+    }
+  }, [position]);
 
-	return (
-		<div className="weather-container">
-			<input
-				className="search"
-				value={location}
-				type="text"
-				onChange={(e) => setLocation(e.target.value)}
-				placeholder="Search..."
-				onKeyPress={searchLocation}
-			/>
-			<div className="weather-loading">
-				<div className="city">
-					{data.main ? <h1 className="city-name">{data.name}</h1> : null}
-				</div>
-				<div className="city-temp">
-					{data.main ? <p> {Math.round(data.main.temp)}°C</p> : null}
-				</div>
-				<div className="flex">
-					<div className="city-icon">
-						{data.main ? (
-							<img
-								src={`https://openweathermap.org/img/w/${data.weather.icon}.png`}
-								alt={data.weather.description}
-							/>
-						) : null}
-					</div>
-					<div className="description">
-						{data.main ? <p>{data.weather.description}</p> : null}
-					</div>
-				</div>
-				{data.main ? (
-					<div className="humidity">Humidity: {data.main.humidity}%</div>
-				) : null}
-				{data.main ? (
-					<div className="wind">Wind speed: {data.wind.speed} km/h</div>
-				) : null}
-			</div>
-		</div>
-	);
+  React.useEffect(() => {
+    const fetchData = async location => {
+      const rawWeatherData = await (await fetch(getApiUrlWithLocation(location))).json();
+      setWeatherData({
+        cityName: rawWeatherData.name,
+        temp: rawWeatherData.main.temp,
+        humidity: rawWeatherData.main.humidity,
+        windSpeed: rawWeatherData.wind.speed,
+        iconName: rawWeatherData.weather[0].icon,
+        description: rawWeatherData.weather[0].description,
+      });
+    };
+
+    if (location) {
+      fetchData(location);
+    }
+  }, [location]);
+
+  React.useEffect(() => {
+    if (weatherData) {
+      setStatus('SUCCESS');
+    }
+  }, [weatherData]);
+
+  const renderApp = status => {
+    switch (status) {
+      case 'SUCCESS':
+        return <WeatherCard weatherData={weatherData} setLocation={setLocation} />;
+      case 'ERROR':
+        return <h1>Sorry, error has occured.</h1>;
+      case 'LOADING':
+      default:
+        return <h1>LOADING...</h1>;
+    }
+  };
+
+  return renderApp(status);
 };
-export default App;
