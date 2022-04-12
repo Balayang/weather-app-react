@@ -5,21 +5,51 @@ import { WeatherCard } from './WeatherCard';
 import './css/Normalize.css';
 import './css/App.css';
 
-export const App = () => {
-  const [status, setStatus] = React.useState('LOADING');
-  const [position, setPosition] = React.useState(undefined);
-  const [weatherData, setWeatherData] = React.useState(undefined);
-  const [location, setLocation] = React.useState(undefined);
+enum Status {
+  Loading = 'LOADING',
+  Success = 'SUCCESS',
+  Error = 'ERROR',
+}
 
-  const getApiUrlWithCoords = position =>
+interface Position {
+  lat: number;
+  long: number;
+}
+
+export interface WeatherData {
+  cityName: string;
+  temp: number;
+  humidity: number;
+  windSpeed: number;
+  iconName: string;
+  description: string;
+}
+
+interface WeatherResponse {
+  name: string;
+  main: {
+    temp: number;
+    humidity: number;
+  };
+  wind: { speed: number };
+  weather: { icon: string; description: string }[];
+}
+
+export const App = () => {
+  const [status, setStatus] = React.useState<Status>(Status.Loading);
+  const [position, setPosition] = React.useState<Position | undefined>(undefined);
+  const [weatherData, setWeatherData] = React.useState<WeatherData | undefined>(undefined);
+  const [location, setLocation] = React.useState<string>('Prague');
+
+  const getApiUrlWithCoords = (position: Position): string =>
     `https://api.openweathermap.org/data/2.5/weather?lat=${position.lat}&lon=${position.long}&appid=${process.env.REACT_APP_API_KEY}&units=metric`;
-  const getApiUrlWithLocation = location =>
+  const getApiUrlWithLocation = (location: string): string =>
     `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${process.env.REACT_APP_API_KEY}&units=metric`;
 
   React.useEffect(() => {
     if (!navigator.geolocation) {
       console.error('Your browser doesnt support geolocation.');
-      setStatus('ERROR');
+      setStatus(Status.Error);
     } else {
       navigator.geolocation.getCurrentPosition(
         position => {
@@ -27,15 +57,17 @@ export const App = () => {
         },
         error => {
           console.error('Getting geolocation failed ', error);
-          setStatus('ERROR');
+          setStatus(Status.Error);
         }
       );
     }
   }, []);
 
   React.useEffect(() => {
-    const fetchData = async position => {
-      const rawWeatherData = await (await fetch(getApiUrlWithCoords(position))).json();
+    const fetchData = async (position: Position) => {
+      const rawWeatherData = (await (
+        await fetch(getApiUrlWithCoords(position))
+      ).json()) as WeatherResponse;
       setWeatherData({
         cityName: rawWeatherData.name,
         temp: rawWeatherData.main.temp,
@@ -52,8 +84,10 @@ export const App = () => {
   }, [position]);
 
   React.useEffect(() => {
-    const fetchData = async location => {
-      const rawWeatherData = await (await fetch(getApiUrlWithLocation(location))).json();
+    const fetchData = async (location: string): Promise<void> => {
+      const rawWeatherData = (await (
+        await fetch(getApiUrlWithLocation(location))
+      ).json()) as WeatherResponse;
       setWeatherData({
         cityName: rawWeatherData.name,
         temp: rawWeatherData.main.temp,
@@ -71,17 +105,17 @@ export const App = () => {
 
   React.useEffect(() => {
     if (weatherData) {
-      setStatus('SUCCESS');
+      setStatus(Status.Success);
     }
   }, [weatherData]);
 
-  const renderApp = status => {
+  const renderApp = (status: Status): JSX.Element => {
     switch (status) {
-      case 'SUCCESS':
-        return <WeatherCard weatherData={weatherData} setLocation={setLocation} />;
-      case 'ERROR':
+      case Status.Success:
+        return <WeatherCard weatherData={weatherData!} setLocation={setLocation} />;
+      case Status.Error:
         return <h1>Sorry, error has occured.</h1>;
-      case 'LOADING':
+      case Status.Loading:
       default:
         return <h1>LOADING...</h1>;
     }

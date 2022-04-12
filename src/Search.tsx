@@ -1,9 +1,13 @@
 import React from 'react';
 
-export const Search = ({ setLocation }) => {
-  const [value, setValue] = React.useState('');
+interface SearchProps {
+  setLocation: React.Dispatch<React.SetStateAction<string>>;
+}
 
-  const onSubmit = e => {
+export const Search: React.FC<SearchProps> = ({ setLocation }) => {
+  const [value, setValue] = React.useState<string>('');
+
+  const onSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
     if (value !== '') {
       setLocation(value);

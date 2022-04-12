@@ -1,8 +1,14 @@
 import React from 'react';
 
+import { WeatherData } from './App';
 import { Search } from './Search';
 
-export const WeatherCard = ({
+interface WeatherProps {
+  weatherData: WeatherData;
+  setLocation: React.Dispatch<React.SetStateAction<string>>;
+}
+
+export const WeatherCard: React.FC<WeatherProps> = ({
   weatherData: { cityName, temp, iconName, description, humidity, windSpeed },
   setLocation,
 }) => (
